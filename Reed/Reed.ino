@@ -14,7 +14,7 @@
  * APPLICATION DEFINES
  */
 #define DEVICE_KEY  ""
-#define DEVICE_NAME ""
+#define DEVICE_NAME "ВЕРАНДА"
 
 #define WIFI_SSID   ""
 #define WIFI_PASSWD ""
@@ -26,7 +26,7 @@
 
 #define MAIN_TMR_DELAY      1000
 #define SENSOR_TMR_DELAY    1000
-#define ALARM_TMR_DELAY     500
+#define ALARM_TMR_DELAY     200
 
 #define LED_ON          255
 #define LED_OFF         0
@@ -39,13 +39,16 @@
 /*
  * VIRTUAL PINS DEFINES
  */
-#define VP_STATUS_SWITCH    V0
-#define VP_STATUS_LED_0     V1
-#define VP_STATUS_LED_1     V2
-#define VP_STATUS_LED_2     V3
-#define VP_STATUS_LED_3     V4
-#define VP_STATUS_OFF       V9
-#define VP_STATUS_ON        V10
+#define VP_STATUS_LED_0     V0
+#define VP_STATUS_LED_1     V1
+#define VP_STATUS_LED_2     V2
+#define VP_STATUS_LED_3     V3
+
+#define VP_STATUS_OFF       V4
+#define VP_STATUS_ON        V5
+#define VP_STATUS_SWItCH    V6
+
+#define VP_ALARM            V7
 
 /*
  * GPIO DEFINES
@@ -102,7 +105,6 @@ BLYNK_WRITE(VP_STATUS_ON)
 {
     if (param.asInt() == TRUE) {
         Status = true;
-        Blynk.virtualWrite(VP_STATUS_SWITCH, TRUE);
     }
 }
 
@@ -110,16 +112,20 @@ BLYNK_WRITE(VP_STATUS_OFF)
 {
     if (param.asInt() == TRUE) {
         Status = false;
-        Blynk.virtualWrite(VP_STATUS_SWITCH, FALSE);
     }
 }
 
-BLYNK_WRITE(VP_STATUS_SWITCH)
+BLYNK_WRITE(VP_STATUS_SWItCH)
 {
     if (param.asInt() == TRUE) {
-        Status = true;
-    } else {
-        Status = false;
+        Status = !Status;
+    }
+}
+
+BLYNK_WRITE(VP_ALARM)
+{
+    if (param.asInt() == TRUE) {
+        Alarm = true;
     }
 }
 
@@ -128,18 +134,19 @@ BLYNK_WRITE(VP_STATUS_SWITCH)
  */
 void MainTimerCallback()
 {
-    if (!Status) {
-        Alarm = false;
-        for (uint8_t i = 0; i < REEDS_COUNT; i++) {
-            Leds[i]->off();
-            Leds[i]->setColor(LED_COLOR_RED);
-        }
-    } else {
+    if (Status) {
         for (uint8_t i = 0; i < REEDS_COUNT; i++) {
             Leds[i]->on();
             if (!Alarm) {
                 Leds[i]->setColor(LED_COLOR_RED);
             }
+        }
+    } else {
+        Alarm = false;
+        Blynk.virtualWrite(VP_ALARM, FALSE);
+        for (uint8_t i = 0; i < REEDS_COUNT; i++) {
+            Leds[i]->off();
+            Leds[i]->setColor(LED_COLOR_RED);
         }
     }
 }
@@ -153,6 +160,7 @@ void SensorTimerCallback()
                     Blynk.notify("ОХРАНА: Внимание! Проникновение! " DEVICE_NAME);
                 }
                 Alarm = true;
+                Blynk.virtualWrite(VP_ALARM, TRUE);
                 delay(500);
                 Leds[i]->setColor(LED_COLOR_YEL);
                 break;
